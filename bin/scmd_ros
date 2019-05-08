@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+import serial
+import rospy
+from geometry_msgs.msg import Twist
+
+
+
+def listener():
+    with serial.Serial('/dev/ttyTHS1', 9600) as ser:
+        ser.write('D\n')
+        ser.write('M0I\n')
+        ser.write('M0F0\n')
+        ser.write('M1F0\n')
+        ser.write('W76%2x\n' % 10)  # Time out commands after 100 ms. (10ms resolution)
+        ser.write('E\n')
+
+        def format_speed(speed):
+            if speed >= 0:
+                return("F%d" % round(speed))
+            else:
+                return("R%d" % round(-speed))
+
+        def callback(velocity):
+            m0_speed = velocity.linear.x + velocity.angular.z
+            m1_speed = velocity.linear.x - velocity.angular.z
+
+            ser.write("M0%s\n" % format_speed(m0_speed))
+            ser.write("M1%s\n" % format_speed(m1_speed))
+            print(velocity)
+        rospy.init_node('listener', anonymous=True)
+        rospy.Subscriber("/scmd/cmd_vel", Twist, callback)
+        rospy.spin()
+
+if __name__ == '__main__':
+    listener()
